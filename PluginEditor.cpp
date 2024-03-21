@@ -10,7 +10,7 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-WavetableSynth_wlfAudioProcessorEditor::WavetableSynth_wlfAudioProcessorEditor (WavetableSynth_wlfAudioProcessor& p)
+WavetableSynth_PluginAudioProcessorEditor::WavetableSynth_PluginAudioProcessorEditor (WavetableSynth_PluginAudioProcessor& p)
     : AudioProcessorEditor (&p), audioProcessor (p)
 {
     // Make sure that before the constructor has finished, you've set the
@@ -18,12 +18,12 @@ WavetableSynth_wlfAudioProcessorEditor::WavetableSynth_wlfAudioProcessorEditor (
     setSize (500, 400);
 }
 
-WavetableSynth_wlfAudioProcessorEditor::~WavetableSynth_wlfAudioProcessorEditor()
+WavetableSynth_PluginAudioProcessorEditor::~WavetableSynth_PluginAudioProcessorEditor()
 {
 }
 
 //==============================================================================
-void WavetableSynth_wlfAudioProcessorEditor::paint (juce::Graphics& g)
+void WavetableSynth_PluginAudioProcessorEditor::paint (juce::Graphics& g)
 {
     // (Our component is opaque, so we must completely fill the background with a solid colour)
     g.fillAll (getLookAndFeel().findColour (juce::ResizableWindow::backgroundColourId));
@@ -33,7 +33,7 @@ void WavetableSynth_wlfAudioProcessorEditor::paint (juce::Graphics& g)
     g.drawFittedText ("the wavetables!", getLocalBounds(), juce::Justification::centred, 1);
 }
 
-void WavetableSynth_wlfAudioProcessorEditor::resized()
+void WavetableSynth_PluginAudioProcessorEditor::resized()
 {
     // This is generally where you'll want to lay out the positions of any
     // subcomponents in your editor..

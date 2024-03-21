@@ -14,11 +14,11 @@
 //==============================================================================
 /**
 */
-class WavetableSynth_wlfAudioProcessorEditor  : public juce::AudioProcessorEditor
+class WavetableSynth_PluginAudioProcessorEditor  : public juce::AudioProcessorEditor
 {
 public:
-    WavetableSynth_wlfAudioProcessorEditor (WavetableSynth_wlfAudioProcessor&);
-    ~WavetableSynth_wlfAudioProcessorEditor() override;
+    WavetableSynth_PluginAudioProcessorEditor (WavetableSynth_PluginAudioProcessor&);
+    ~WavetableSynth_PluginAudioProcessorEditor() override;
 
     //==============================================================================
     void paint (juce::Graphics&) override;
@@ -27,7 +27,7 @@ public:
 private:
     // This reference is provided as a quick way for your editor to
     // access the processor object that created it.
-    WavetableSynth_wlfAudioProcessor& audioProcessor;
+    WavetableSynth_PluginAudioProcessor& audioProcessor;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WavetableSynth_wlfAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WavetableSynth_PluginAudioProcessorEditor)
 };

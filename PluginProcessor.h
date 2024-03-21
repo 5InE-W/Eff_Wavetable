@@ -14,15 +14,14 @@
 #include "effect.h"
 
 //==============================================================================
-/**
-*/
-class WavetableSynth_wlfAudioProcessor  : public juce::AudioProcessor,
+
+class WavetableSynth_PluginAudioProcessor  : public juce::AudioProcessor,
 public juce::AudioProcessorValueTreeState::Listener
 {
 public:
     //==============================================================================
-    WavetableSynth_wlfAudioProcessor();
-    ~WavetableSynth_wlfAudioProcessor() override;
+    WavetableSynth_PluginAudioProcessor();
+    ~WavetableSynth_PluginAudioProcessor() override;
 
     //==============================================================================
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
@@ -64,9 +63,10 @@ private:
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
     std::atomic<float>* osc1 = nullptr;
     std::atomic<float>* osc2 = nullptr;
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WavetableSynth_wlfAudioProcessor)
+    std::unique_ptr<WavetableSynth> synth;
+    std::unique_ptr<Distortion> dist;
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WavetableSynth_PluginAudioProcessor)
+  
     
-    WavetableSynth synth;
-    Distortion dist;
 
 };

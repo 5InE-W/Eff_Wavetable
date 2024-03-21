@@ -13,10 +13,9 @@
 
 WavetableOscillator::WavetableOscillator(std::vector<float> waveTable, double sampleRate)
     :waveTable{std::move(waveTable)},
-        sampleRate{sampleRate}  // what does this syntax means? class : funcs, funcs ?
+        sampleRate{sampleRate}  
 {
     adsr.setSampleRate(sampleRate);
-     //ADSR define in class wavetableSynth
     params.attack = .1;
     params.decay = .9;
     params.sustain = .5;
@@ -27,6 +26,7 @@ WavetableOscillator::WavetableOscillator(std::vector<float> waveTable, double sa
     
 }
 
+// ADSR envelope
 void WavetableOscillator::setAttack(float attack)
 {
     params.attack = attack;
@@ -51,6 +51,7 @@ void WavetableOscillator::setRelease(float release)
 }
 
 
+// oscillators
 
 void WavetableOscillator::setFrequency(float frequency)
 {
@@ -74,11 +75,8 @@ float WavetableOscillator::interpolateLinearly() const
     
     const auto nextIndexWeight = index - static_cast<float>(truncatedIndex); // 100.7 - 100 = 0.7 (the rest)
     const auto truncatedIndexWeight = 1.f - nextIndexWeight; // 0.3
-    //          osc1                        osc2  --> in return function ersetzen.
     
     return truncatedIndexWeight * waveTable[truncatedIndex] + nextIndexWeight * waveTable[nextIndex]; // 0.3 * wt[100] + 0.7 * wt[101]
-    
-    // truncatedIdxWght,osc1 ; nextIdxWght,osc2
 }
 
 void WavetableOscillator::stop()

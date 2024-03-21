@@ -10,7 +10,7 @@
 #include "PluginEditor.h"
 
 //==============================================================================
-WavetableSynth_wlfAudioProcessor::WavetableSynth_wlfAudioProcessor()
+WavetableSynth_PluginAudioProcessor::WavetableSynth_PluginAudioProcessor()
 #ifndef JucePlugin_PreferredChannelConfigurations
      : AudioProcessor (BusesProperties()
                      #if ! JucePlugin_IsMidiEffect
@@ -22,7 +22,10 @@ WavetableSynth_wlfAudioProcessor::WavetableSynth_wlfAudioProcessor()
                        ),treeState(*this, nullptr, "PARAMETERS", createParameterLayout())
 #endif
 {
-    //std::atomic<float>* z.B. osc1.attack u.s.w.... um die Werte vom treeState zu bekommen
+    
+    synth = std::make_unique<WavetableSynth>();
+    dist = std::make_unique<Distortion>();
+    
     osc1 = treeState.getRawParameterValue("OSC1");
     osc2 = treeState.getRawParameterValue("OSC2");
     treeState.addParameterListener("attack_osc1", this);
@@ -36,13 +39,11 @@ WavetableSynth_wlfAudioProcessor::WavetableSynth_wlfAudioProcessor()
     treeState.addParameterListener("OSC1",this);
     treeState.addParameterListener("OSC2",this);
     treeState.addParameterListener("MIX", this);
-    //listener distortion
     treeState.addParameterListener("DIST",this); // Arg (paramID)
     treeState.addParameterListener("LEVEL",this);
-    treeState.addParameterListener("DMIX", this);
 }
 
-WavetableSynth_wlfAudioProcessor::~WavetableSynth_wlfAudioProcessor()
+WavetableSynth_PluginAudioProcessor::~WavetableSynth_PluginAudioProcessor()
 {
     treeState.removeParameterListener("attack_osc1", this);
     treeState.removeParameterListener("decay_osc1", this);
@@ -55,22 +56,19 @@ WavetableSynth_wlfAudioProcessor::~WavetableSynth_wlfAudioProcessor()
     treeState.removeParameterListener("release_osc2", this);
     treeState.removeParameterListener("OSC2",this);
     treeState.removeParameterListener("MIX", this);
-    //listener distortion
     treeState.removeParameterListener("DIST",this);
     treeState.removeParameterListener("LEVEL",this);
-    treeState.removeParameterListener("DMIX", this);
-  
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
-WavetableSynth_wlfAudioProcessor::createParameterLayout()
+WavetableSynth_PluginAudioProcessor::createParameterLayout()
 {
     // create parameters
     // you could also use a array with strings and add them in a for loop
     std::vector <std::unique_ptr<juce::RangedAudioParameter>> cparams; //stores value in params vector
     auto pOscType1 = std::make_unique<juce::AudioParameterChoice>("OSC1","OSC TYPE 1",juce::StringArray{"Sine", "Saw", "Pulse", "Tri"},1);
     auto pOscType2 = std::make_unique<juce::AudioParameterChoice>("OSC2","OSC TYPE 2",juce::StringArray{"Sine", "Saw", "Pulse", "Tri"},2);
-    auto pOsc1attack = std::make_unique<juce::AudioParameterFloat>("attack_osc1","attack_osc1",0.1,1.0,0.5);
+    auto pOsc1attack = std::make_unique<juce::AudioParameterFloat>("attack_osc1","attack_osc1",0.1,1.0,0.1);
     auto pOsc1decay= std::make_unique<juce::AudioParameterFloat>("decay_osc1","decay_osc1",0.1,1.0,0.5);
     auto pOsc1sustain = std::make_unique<juce::AudioParameterFloat>("sustain_osc1","sustain_osc1",0.1,1.0,0.5);
     auto pOsc1release= std::make_unique<juce::AudioParameterFloat>("release_osc1","release_osc1",0.1,1.0,0.5);
@@ -81,9 +79,8 @@ WavetableSynth_wlfAudioProcessor::createParameterLayout()
     auto pMix= std::make_unique<juce::AudioParameterFloat>("MIX","MIX",0,1.0,0.5);
     
     //distortion
-    auto pdist = std::make_unique<juce::AudioParameterFloat>("DIST","DIST",0.f,60.f,60.f);
-    auto plevel = std::make_unique<juce::AudioParameterFloat>("LEVEL","LEVEL",-40.f,40.f,0.f);
-    auto dMix = std::make_unique<juce::AudioParameterFloat>("DMIX","DMIX",0.f,1.f,0.5 );
+    auto pdist = std::make_unique<juce::AudioParameterFloat>("DIST","DIST",0.f,60.f,1.f);
+    auto plevel = std::make_unique<juce::AudioParameterFloat>("LEVEL","LEVEL",-40.f,1.f,-20.f);
    
     
     cparams.push_back(std::move(pOscType1)); 
@@ -99,8 +96,7 @@ WavetableSynth_wlfAudioProcessor::createParameterLayout()
     cparams.push_back(std::move(pMix));
     cparams.push_back(std::move(pdist));
     cparams.push_back(std::move(plevel));
-    cparams.push_back(std::move(dMix));
-    
+   
     
     return {cparams.begin(),cparams.end()};
 }
@@ -110,12 +106,12 @@ WavetableSynth_wlfAudioProcessor::createParameterLayout()
 
 
 //==============================================================================
-const juce::String WavetableSynth_wlfAudioProcessor::getName() const
+const juce::String WavetableSynth_PluginAudioProcessor::getName() const
 {
     return JucePlugin_Name;
 }
 
-bool WavetableSynth_wlfAudioProcessor::acceptsMidi() const
+bool WavetableSynth_PluginAudioProcessor::acceptsMidi() const
 {
    #if JucePlugin_WantsMidiInput
     return true;
@@ -124,7 +120,7 @@ bool WavetableSynth_wlfAudioProcessor::acceptsMidi() const
    #endif
 }
 
-bool WavetableSynth_wlfAudioProcessor::producesMidi() const
+bool WavetableSynth_PluginAudioProcessor::producesMidi() const
 {
    #if JucePlugin_ProducesMidiOutput
     return true;
@@ -133,7 +129,7 @@ bool WavetableSynth_wlfAudioProcessor::producesMidi() const
    #endif
 }
 
-bool WavetableSynth_wlfAudioProcessor::isMidiEffect() const
+bool WavetableSynth_PluginAudioProcessor::isMidiEffect() const
 {
    #if JucePlugin_IsMidiEffect
     return true;
@@ -142,139 +138,134 @@ bool WavetableSynth_wlfAudioProcessor::isMidiEffect() const
    #endif
 }
 
-double WavetableSynth_wlfAudioProcessor::getTailLengthSeconds() const
+double WavetableSynth_PluginAudioProcessor::getTailLengthSeconds() const
 {
     return 0.0;
 }
 
-int WavetableSynth_wlfAudioProcessor::getNumPrograms()
+int WavetableSynth_PluginAudioProcessor::getNumPrograms()
 {
     return 1;   // NB: some hosts don't cope very well if you tell them there are 0 programs,
                 // so this should be at least 1, even if you're not really implementing programs.
 }
 
-int WavetableSynth_wlfAudioProcessor::getCurrentProgram()
+int WavetableSynth_PluginAudioProcessor::getCurrentProgram()
 {
     return 0;
 }
 
-void WavetableSynth_wlfAudioProcessor::setCurrentProgram (int index)
+void WavetableSynth_PluginAudioProcessor::setCurrentProgram (int index)
 {
 }
 
-const juce::String WavetableSynth_wlfAudioProcessor::getProgramName (int index)
+const juce::String WavetableSynth_PluginAudioProcessor::getProgramName (int index)
 {
     return {};
 }
 
-void WavetableSynth_wlfAudioProcessor::changeProgramName (int index, const juce::String& newName)
+void WavetableSynth_PluginAudioProcessor::changeProgramName (int index, const juce::String& newName)
 {
 }
 
 //==============================================================================
-void WavetableSynth_wlfAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
+void WavetableSynth_PluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    synth.prepareToPlay(sampleRate);
-    synth.switchOSC1(*osc1);
-    synth.switchOSC2(*osc2);
+    synth->prepareToPlay(sampleRate);
+    synth->switchOSC1(*osc1);
+    synth->switchOSC2(*osc2);
     
     //prepare distortion
-    // hier einmal die ganzen Werte intialisieren für den Synth
+    // initialize the value for synth
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = samplesPerBlock;
-    spec.numChannels = getTotalNumOutputChannels();
-    dist.prepare(spec);
+    spec.numChannels = 1;
+    dist->prepare(spec);
   
 }
 
-void WavetableSynth_wlfAudioProcessor::releaseResources()
+void WavetableSynth_PluginAudioProcessor::releaseResources()
 {
     // When playback stops, you can use this as an opportunity to free up any
     // spare memory, etc.
 }
 
-void WavetableSynth_wlfAudioProcessor::parameterChanged(const juce::String &parameterID, float newValue)
+void WavetableSynth_PluginAudioProcessor::parameterChanged(const juce::String &parameterID, float newValue)
 {
     if(parameterID == "attack_osc1")
     {
-        for(auto& osc : synth.oSC1)
+        for(auto& osc : synth->oSC1)
             osc.setAttack(newValue);
     }
     if(parameterID == "decay_osc1")
     {
-        for(auto& osc : synth.oSC1)
+        for(auto& osc : synth->oSC1)
             osc.setDecay(newValue);
     }
     
     if(parameterID == "sustain_osc1")
     {
-        for(auto& osc : synth.oSC1)
+        for(auto& osc : synth->oSC1)
             osc.setSustain(newValue);
     }
     
     if(parameterID == "release_osc1")
     {
-        for(auto& osc : synth.oSC1)
+        for(auto& osc : synth->oSC1)
             osc.setRelease(newValue);
     }
     
     if(parameterID == "OSC1")
     {
-        synth.switchOSC1(newValue);
+        synth->switchOSC1(newValue);
     }
     
     if(parameterID == "attack_osc2")
     {
-        for(auto& osc : synth.oSC2)
+        for(auto& osc : synth->oSC2)
             osc.setAttack(newValue);
     }
     if(parameterID == "decay_osc2")
     {
-        for(auto& osc : synth.oSC2)
+        for(auto& osc : synth->oSC2)
             osc.setDecay(newValue);
     }
         
     if(parameterID == "sustain_osc2")
     {
-        for(auto& osc : synth.oSC2)
+        for(auto& osc : synth->oSC2)
             osc.setSustain(newValue);
     }
         
     if(parameterID == "release_osc2")
     {
-        for(auto& osc : synth.oSC2)
+        for(auto& osc : synth->oSC2)
             osc.setRelease(newValue);
     }
         
     if(parameterID == "OSC2")
     {
-        synth.switchOSC2(newValue);
+        synth->switchOSC2(newValue);
     }
     
     if(parameterID == "MIX")
     {
-        synth.setGain(newValue);
+        synth->setGain(newValue);
     }
     
-    
-    // we want the effect apply before out, all together
-    // find out setPArameter function. 
-     
-     if(parameterID == "distortion")
+     if(parameterID == "DIST")
     {
-        dist.setDist(newValue);
+        dist->setDist(newValue);
     }
     
-    if(parameterID == "level")
+    if(parameterID == "LEVEL")
    {
-       dist.setLevel(newValue);
+       dist->setLevel(newValue);
    }
-     
 }
 
 #ifndef JucePlugin_PreferredChannelConfigurations
-bool WavetableSynth_wlfAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
+bool WavetableSynth_PluginAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
   #if JucePlugin_IsMidiEffect
     juce::ignoreUnused (layouts);
@@ -299,36 +290,37 @@ bool WavetableSynth_wlfAudioProcessor::isBusesLayoutSupported (const BusesLayout
 }
 #endif
 
-void WavetableSynth_wlfAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void WavetableSynth_PluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     
-    buffer.clear();
-    
-    synth.processBlock(buffer, midiMessages);
-    dist.processBlock(buffer);
+    for (auto i = 0; i < buffer.getNumChannels(); ++i)
+           buffer.clear(i, 0, buffer.getNumSamples()
+        );
+    synth->processBlock(buffer, midiMessages);
+    dist->processBlock(buffer, midiMessages);
 
 }
 
 //==============================================================================
-bool WavetableSynth_wlfAudioProcessor::hasEditor() const
+bool WavetableSynth_PluginAudioProcessor::hasEditor() const
 {
     return true; // (change this to false if you choose to not supply an editor)
 }
 
-juce::AudioProcessorEditor* WavetableSynth_wlfAudioProcessor::createEditor()
+juce::AudioProcessorEditor* WavetableSynth_PluginAudioProcessor::createEditor()
 {
-    return new juce::GenericAudioProcessorEditor(*this); //new WavetableSynth_wlfAudioProcessorEditor (*this);
+    return new juce::GenericAudioProcessorEditor(*this); //new WavetableSynth_PluginAudioProcessorEditor (*this);
 }
 
 //==============================================================================
-void WavetableSynth_wlfAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void WavetableSynth_PluginAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     juce::MemoryOutputStream mos (destData, true);
                          treeState.state.writeToStream(mos);
 }
 
-void WavetableSynth_wlfAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+void WavetableSynth_PluginAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     auto tree = juce::ValueTree::readFromData(data, sizeInBytes);
                               if(tree.isValid() )
@@ -341,5 +333,5 @@ void WavetableSynth_wlfAudioProcessor::setStateInformation (const void* data, in
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new WavetableSynth_wlfAudioProcessor();
+    return new WavetableSynth_PluginAudioProcessor();
 }
